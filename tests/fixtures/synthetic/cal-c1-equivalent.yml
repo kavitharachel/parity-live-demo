@@ -1,0 +1,25 @@
+# SYNTHETIC CALIBRATION FIXTURE -- NOT a real file. Hand-written for verifier calibration only.
+# CAL-C1: semantically equivalent control (reordered jobs, single-quoted rule, flow styles).
+stages:
+  - build
+  - deploy
+
+cleanup:
+  stage: .post
+  rules: [{when: always}]
+  script:
+    - echo "cleanup"
+
+deploy:
+  stage: deploy
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  script:
+    - echo "deploying"
+
+build:
+  stage: build
+  script:
+    - mkdir -p out && echo "build-output" > out/app.txt
+  artifacts:
+    paths: [out/]

@@ -1,0 +1,24 @@
+// SYNTHETIC CALIBRATION FIXTURE -- NOT a real file.
+// Copy of tests/fixtures/real/Jenkinsfile with `, fingerprint: true` removed.
+pipeline {
+    agent any
+    stages {
+        stage('Build') {
+            steps {
+                sh 'mkdir -p out && echo "build-output" > out/app.txt'
+                archiveArtifacts artifacts: 'out/**'
+            }
+        }
+        stage('Deploy') {
+            when { branch 'main' }
+            steps {
+                sh 'echo "deploying"'
+            }
+        }
+    }
+    post {
+        always {
+            sh 'echo "cleanup"'
+        }
+    }
+}

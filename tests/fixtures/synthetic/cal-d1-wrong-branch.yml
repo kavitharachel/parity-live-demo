@@ -1,0 +1,27 @@
+# SYNTHETIC CALIBRATION FIXTURE -- NOT a real file. Hand-written for verifier calibration only.
+# CAL-D1: wrong deploy branch (rule uses "master" instead of "main").
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  script:
+    - mkdir -p out && echo "build-output" > out/app.txt
+  artifacts:
+    paths:
+      - out/
+
+deploy:
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+  script:
+    - echo "deploying"
+
+# Equivalent of Jenkins `post { always { ... } }`
+cleanup:
+  stage: .post
+  when: always
+  script:
+    - echo "cleanup"
