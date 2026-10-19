@@ -156,3 +156,79 @@ scenario plus `scenario_independent: true`), `jenkins_executes`,
   differently written commands are `FAIL`.
 * Calibration on 4 synthetic cases and 1 real pair does not establish general
   verifier accuracy.
+
+## GUI
+
+`app.py` is a Streamlit dashboard on top of the unchanged verifier. All non-UI
+logic (input checks, labels, calibration, evidence file name, example loading)
+lives in `parity_gui_logic.py`, which does not import streamlit.
+
+### Run it
+
+```sh
+python -m venv .venv
+source .venv/bin/activate          # Windows: .venv\Scripts\activate
+pip install -r requirements-gui.txt
+streamlit run app.py
+```
+
+`requirements-gui.txt` = `requirements.txt` + `streamlit==1.45.1`.
+`requirements.txt` (used by the CI job `parity-tests`) is unchanged, so the
+verifier and its tests still need PyYAML only.
+
+### Screens
+
+* **Header / sidebar** - what the tool is, the verdict meanings, the evidence
+  labels and the size cap (256 KiB per input). A warning banner states that a
+  PASS does NOT prove Jenkins runtime equivalence.
+* **Verify a migration** - for the Jenkinsfile and the GitLab CI YAML, either
+  paste text or upload a file (read as raw bytes). **Load real conversion
+  example** fills both from `tests/fixtures/real/` and shows a summary and the
+  full text of `PROVENANCE.md`. **Verify Migration** calls
+  `parity_verify.verify_bytes` and shows:
+  * the overall verdict as a coloured badge (`CONFIRMED_LOSS`,
+    `INSUFFICIENT_EVIDENCE`, or "no divergence in static model - runtime
+    unverified" for `CHECKED_EQUIVALENT_WITH_UNVERIFIED_RUNTIME`, which is never
+    shown as plain "equivalent"/"passed");
+  * one card per check (verdict, summary, reasons, scenarios evaluated,
+    divergences) with the mismatch witness: scenario, what Jenkins executes vs
+    what GitLab executes, diff, `scenario_independent`, plus raw JSON;
+  * confirmed unsupported mappings (e.g. `fingerprint`);
+  * unparsed / out-of-model items with side and line number;
+  * unverified runtime semantics;
+  * input SHA-256 values and verifier version;
+  * **Download evidence JSON**: exactly `parity_verify.render_json(result)`,
+    named `parity-evidence-<12 hex of Jenkinsfile sha256>-<12 hex of GitLab sha256>.json`;
+    the same inputs give byte-identical files (no timestamps).
+* **Calibration** - **Run calibration** really runs the verifier over the
+  synthetic fixtures and compares the output with the expectations defined in
+  `tests/fixtures/synthetic/README.md` / `tests/test_parity_verify.py`. Before
+  the click it shows "Not run"; afterwards the computed table
+  (fixture, expected, actual, match) and "k of n" are shown.
+
+Bad input (empty, not UTF-8, too large, NUL bytes, alias-heavy YAML) gives a
+friendly error. Malformed YAML, unbalanced Jenkins braces and unsupported syntax
+are passed to the verifier, which reports them in `unparsed`; the result is
+`OUT_OF_MODEL` / `INSUFFICIENT_EVIDENCE`, never a fake PASS.
+
+### Real vs synthetic
+
+Every input and result is labelled:
+
+* **REAL conversion evidence** - byte-identical to the files in
+  `tests/fixtures/real/` (see its `PROVENANCE.md`).
+* **SYNTHETIC calibration fixture** - files from `tests/fixtures/synthetic/`.
+  They calibrate the verifier and are never real conversion evidence.
+* **USER-SUPPLIED** - anything else, including an edited copy of a real file.
+
+### Limitation
+
+The verifier is a static model of a small Jenkins/GitLab subset. A PASS only
+means no divergence in the modelled scenarios; it does NOT prove Jenkins
+runtime equivalence. See `unverified_runtime_semantics` in the output.
+
+### GUI tests
+
+`python -m unittest discover -s tests -v` runs `tests/test_parity_gui.py`. The
+logic tests need PyYAML only; the Streamlit `AppTest` smoke tests are skipped
+unless streamlit is installed (`pip install -r requirements-gui.txt`).

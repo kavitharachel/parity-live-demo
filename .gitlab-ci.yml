@@ -9,3 +9,16 @@ parity-tests:
     - pip install -r requirements.txt
     - python -c "import yaml; print('PyYAML', yaml.__version__)"
     - python -m unittest discover -s tests -v
+
+# Optional: runs the Streamlit AppTest smoke tests in addition to the logic tests.
+# Separate from `parity-tests`; a failure here (e.g. package index unavailable)
+# does not fail the pipeline.
+parity-gui-tests:
+  stage: test
+  image: python:3.12-slim
+  allow_failure: true
+  script:
+    - python --version
+    - pip install -r requirements-gui.txt
+    - python -c "import streamlit; print('streamlit', streamlit.__version__)"
+    - python -m unittest discover -s tests -p "test_parity_gui.py" -v
