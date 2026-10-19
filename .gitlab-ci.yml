@@ -16,7 +16,6 @@ parity-tests:
 parity-gui-tests:
   stage: test
   image: python:3.12-slim
-  allow_failure: true
   script:
     - python --version
     - pip install -r requirements-gui.txt
