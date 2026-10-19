@@ -56,7 +56,16 @@ class RealFixtureTests(unittest.TestCase):
     def test_no_dot_gitlab_ci_file_in_repo(self):
         for dirpath, dirnames, filenames in os.walk(ROOT):
             dirnames[:] = [d for d in dirnames if d != ".git"]
-            self.assertNotIn(".gitlab-ci.yml", filenames, dirpath)
+            # The root-level .gitlab-ci.yml is the single intentionally added
+            # validation CI config; any other location (notably fixtures)
+            # must still be rejected.
+            if ".gitlab-ci.yml" in filenames and os.path.normpath(
+                dirpath
+            ) != os.path.normpath(ROOT):
+                self.fail(
+                    "unexpected .gitlab-ci.yml at: "
+                    + os.path.join(dirpath, ".gitlab-ci.yml")
+                )
 
     def test_four_checks_pass(self):
         for check in FOUR:
