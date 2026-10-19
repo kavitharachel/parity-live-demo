@@ -10,9 +10,9 @@ parity-tests:
     - python -c "import yaml; print('PyYAML', yaml.__version__)"
     - python -m unittest discover -s tests -v
 
-# Optional: runs the Streamlit AppTest smoke tests in addition to the logic tests.
-# Separate from `parity-tests`; a failure here (e.g. package index unavailable)
-# does not fail the pipeline.
+# Mandatory: runs the Streamlit AppTest smoke tests in addition to the logic tests.
+# Separate from `parity-tests`; a failure here (including a package index outage
+# during `pip install`) fails the pipeline.
 parity-gui-tests:
   stage: test
   image: python:3.12-slim
