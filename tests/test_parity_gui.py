@@ -472,7 +472,7 @@ class StreamlitAppSmokeTests(unittest.TestCase):
         self.assertEqual(len(at.exception), 0, [e.value for e in at.exception])
         cal = gl.run_calibration()
         self.assertTrue(any(gl.calibration_summary(cal) in s.value
-                            for s in at.success + at.error))
+                            for s in list(at.success) + list(at.error)))
 
 
 if __name__ == "__main__":
