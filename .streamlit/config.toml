@@ -1,0 +1,8 @@
+# PARITY 2.0 light theme (colours from the approved design brief). Streamlit's
+# supported theme options only; no CSS selectors on Streamlit internals.
+[theme]
+base = "light"
+primaryColor = "#3B4CCA"
+backgroundColor = "#F7F8FA"
+secondaryBackgroundColor = "#FFFFFF"
+textColor = "#14171F"

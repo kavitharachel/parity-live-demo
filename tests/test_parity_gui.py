@@ -416,7 +416,7 @@ class PresentationTests(unittest.TestCase):
         self.assertIsNone(gl.witness_view(None))
 
     def test_check_verdict_view(self):
-        self.assertIn("static model", gl.check_verdict_view("PASS")[0])
+        self.assertEqual(gl.check_verdict_view("PASS")[0], "PASS (modelled)")
         self.assertEqual(gl.check_verdict_view("FAIL")[0], "FAIL")
         self.assertIn("OUT OF MODEL", gl.check_verdict_view("OUT_OF_MODEL")[0])
 
@@ -447,7 +447,7 @@ class StreamlitAppSmokeTests(unittest.TestCase):
     def test_app_starts_without_exception(self):
         at = self._app().run()
         self.assertEqual(len(at.exception), 0, [e.value for e in at.exception])
-        self.assertTrue(any("does NOT prove" in w.value for w in at.warning))
+        self.assertIn(gl.STATIC_MODEL_NOTICE, " ".join(m.value for m in at.markdown))
 
     def test_load_real_example_then_verify(self):
         at = self._app().run()
