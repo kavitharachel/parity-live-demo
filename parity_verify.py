@@ -102,6 +102,11 @@ EXIT_CODES = {
 }
 EXIT_USAGE = 3
 
+# Analysis limits. They keep the recursive parser/matcher far below the interpreter's
+# recursion limit, so the outcome never depends on the caller's stack depth.
+MAX_JENKINS_NESTING = 64  # nested `{ }` blocks in a Jenkinsfile
+MAX_PATTERN_SEGMENTS = 32  # `/`-separated segments of an artifact pattern or path
+
 CHECK_IDS = ("always_cleanup", "artifact_paths", "branch_gate", "build_commands")
 STAGE_CHECKS = ("artifact_paths", "branch_gate", "build_commands")
 ALL_CHECKS = CHECK_IDS
@@ -435,6 +440,23 @@ def _strip_parens(args):
     return args
 
 
+def _nesting_excess_line(toks):
+    """Line of the first block nested deeper than MAX_JENKINS_NESTING, else None.
+
+    Counts braces only (the parser recurses once per open block, not for parentheses
+    or brackets). Called before parsing; the tokens are known to be balanced.
+    """
+    depth = 0
+    for t in toks:
+        if t.type == "lbrace":
+            depth += 1
+            if depth > MAX_JENKINS_NESTING:
+                return t.line
+        elif t.type == "rbrace":
+            depth -= 1
+    return None
+
+
 def parse_jenkinsfile(text):
     """Parse the supported declarative subset.
 
@@ -452,6 +474,13 @@ def parse_jenkinsfile(text):
     if errors:
         for ln, msg in errors:
             add(ln, msg, ALL_CHECKS)
+        model["valid"] = False
+        return model, unparsed
+
+    too_deep = _nesting_excess_line(toks)
+    if too_deep is not None:
+        add(too_deep, "nesting too deep: blocks nested more than %d levels are not "
+            "analysed (out of model)" % MAX_JENKINS_NESTING, ALL_CHECKS)
         model["valid"] = False
         return model, unparsed
 
@@ -662,6 +691,8 @@ def _pattern_ok(p):
         return False
     if p.startswith("/") or p.startswith("./") or p.startswith("../"):
         return False
+    if len(p.split("/")) > MAX_PATTERN_SEGMENTS:
+        return False
     return ".." not in p.split("/")
 
 
@@ -797,6 +828,9 @@ def parse_gitlab_ci(text):
         mark = getattr(exc, "problem_mark", None)
         line = mark.line + 1 if mark is not None else 1
         return invalid(line, "YAML syntax error: %s" % (getattr(exc, "problem", None) or "invalid"))
+    except RecursionError:
+        return invalid(1, "YAML nesting too deep to analyse (recursion limit reached; "
+                          "out of model)")
     if not isinstance(data, dict) or not isinstance(root, yaml.MappingNode):
         return invalid(1, "top level of the YAML document is not a mapping")
     if any(not isinstance(k, str) for k in data):
@@ -1345,7 +1379,12 @@ def main(argv=None):
     except OSError as exc:
         sys.stderr.write("error: cannot read input: %s\n" % exc.strerror)
         return EXIT_USAGE
-    out = render_json(verify_bytes(jbytes, gbytes))
+    try:
+        out = render_json(verify_bytes(jbytes, gbytes))
+    except Exception as exc:  # an analysis crash is a tool error, never a verdict (exit 1)
+        sys.stderr.write("error: internal verifier error (%s); no verdict was produced\n"
+                         % type(exc).__name__)
+        return EXIT_USAGE
     try:
         if args.output:
             with open(args.output, "w", encoding="utf-8", newline="\n") as fh:
